@@ -2,10 +2,11 @@
 
 ## Install
 ```
-pip install -i
+pip install https://github.com/quickslack/slack-user-client
 ```
 ## Usage
 ```python
+import os
 username = os.environ.get('SLACK_EMAIL')
 password = os.environ.get('SLACK_PASSWORD')
 workspace_url = os.environ.get('SLACK_WORKSPACE_URL')
