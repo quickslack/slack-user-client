@@ -2,7 +2,7 @@
 
 ## Install
 ```
-pip install https://github.com/quickslack/slack-user-client
+pip install git+https://github.com/quickslack/slack-user-client
 ```
 ## Usage
 ```python
