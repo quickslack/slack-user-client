@@ -7,7 +7,7 @@ with open(path.join(this_directory, 'README.md'), encoding='utf-8') as f:
 
 setup(
     name='slack-user-client',
-    version='0.0.0.0',
+    version='0.0.0.1',
     description="Python Slack client using slack's internal web api",
     long_description=long_description,
     long_description_content_type='text/markdown',
