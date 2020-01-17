@@ -1,22 +1,35 @@
-import os
 import re
 import json
 from datetime import datetime
 from requests_html import HTMLSession
-__version__ = "0.0.0.0"
+from multiprocessing.dummy import Pool
+from itertools import chain
+__version__ = "0.0.0.1"
+
+
+def val_to_str(value):
+    if value is None:
+        return ''
+    if type(value) == bool:
+        return 'true' if value else 'false'
+    return str(value)
+
+
+def val_to_form_str(value):
+    return None, val_to_str(value)
 
 
 def now_timestamp():
-    '''
+    """
     convenience function to get current datetime unix timestamp
-    '''
+    """
     return datetime.now().timestamp()
 
 
 class SlackClient:
-    '''
+    """
     Slack Client using slack's internal web api
-    '''
+    """
 
     def __init__(self, email, password, workspace_url):
         self.session = HTMLSession()
@@ -26,11 +39,12 @@ class SlackClient:
         self.version_hash = None
         self.workspace_id = None
         self.api_token = None
+        self.auth_url_params = {}
 
     def login(self):
-        '''
+        """
         Login to slack using initialized credentials
-        '''
+        """
         email = self.email
         password = self.password
         workspace_url = self.workspace_url
@@ -60,7 +74,7 @@ class SlackClient:
         self.version_hash = res.html.find(
             'html', first=True).attrs['data-version-hash']
         self.workspace_id = res.url.split('/')[-1]
-        # use auhtenticated session cookie to get the api token
+        # use authenticated session cookie to get the api token
         url_params = {
             'app': 'client',
             'lc': int(datetime.now().timestamp()),
@@ -72,40 +86,44 @@ class SlackClient:
         match = re.search(r"JSON\.stringify\((.+?)\);", res.text)
         auth_data = data = json.loads(match.group(1))
         self.api_token = auth_data['teams'][self.workspace_id]['token']
-
-    def get_messages_from_channel(
-            self,
-            channel_id,
-            oldest=None,
-            latest=None,
-            ignore_replies=True,
-            inclusive=False,
-            limit=100):
+        # Setup base url parameters
         timestamp = now_timestamp()
-        endpoint = f'{self.workspace_url}/api/conversations.history'
-        url_params = {
+        self.auth_url_params = {
             '_x_id': f'{self.version_hash[:8]}-{timestamp}',
             'x_version_ts': int(timestamp),
             '_x_gantry': 'true',
         }
-        form_data = {
-            'channel': (None, channel_id),
-            'limit': (None, str(limit)),
-            'latest': (None, str(timestamp)),
-            'token': (None, self.api_token),
-            'ignore_replies': (None, 'true' if ignore_replies else 'false'),
-            'inclusive': (None, 'true' if inclusive else 'false'),
-            'include_pin_count': (None, 'false'),
-            'no_user_profile': (None, 'true'),
-        }
 
-        if latest:
-            form_data['latest'] = (None, str(latest))
-        if oldest:
-            form_data['oldest'] = (None, (oldest))
+    def _auth_session_export(self, path):
+        # todo
+        pass
 
+    def _auth_session_import(self, path):
+        # todo
+        pass
+
+    def _api_post(self, api_path, **kwargs):
+        kwargs.update({'token': self.api_token})
+        form_data = {k: val_to_form_str(kwargs[k]) for k in kwargs.keys()}
+        endpoint = f'{self.workspace_url}/api/{api_path}'
+        url_params = self.auth_url_params
         res = self.session.post(endpoint, params=url_params, files=form_data)
         return res.json()
+
+    def get_messages_from_channel(
+            self, channel, limit=100, latest=9999999999, ignore_replies=True,
+            inclusive=False, include_pin_count=False, no_user_profile=False,
+            **kwargs):
+        return self._api_post('conversations.history',
+                              channel=channel,
+                              limit=limit,
+                              latest=latest,
+                              ignore_replies=ignore_replies,
+                              inclusive=inclusive,
+                              include_pin_count=include_pin_count,
+                              no_user_profile=no_user_profile,
+                              **kwargs
+                              )
 
     def get_all_messages_from_channel(self, channel_id, **kwargs):
         messages = []
@@ -117,3 +135,48 @@ class SlackClient:
             if not message_data['has_more']:
                 break
         return messages
+
+    def channel_search(
+            self, query='', page=1, sort='created', sort_dir='desc',
+            exclude_my_channels=0, only_my_channel=0,
+            browse='standard', channel_type='exclude_archive', **kwargs):
+
+        return self._api_post(
+            'search.modules', module='channels', query=query,
+            page=page, sort=sort, sort_dir=sort_dir,
+            exclude_my_channels=exclude_my_channels,
+            only_my_channel=only_my_channel, browse=browse,
+            channel_type=channel_type, ** kwargs)
+
+    def get_all_channels(self, threads=8):
+        # get first page to obtain info about # of pages
+        first_page = self.channel_search()
+        channels = first_page['items']
+
+        def get_page_item(page):
+            return self.channel_search('', page)['items']
+
+        page_count = first_page['pagination']['page_count']
+        # get all remaining channels
+        pool = Pool(threads)
+        channels.extend(
+            chain(*pool.map(get_page_item, range(2, page_count+1))))
+        return channels
+
+    def get_replies(self, channel, ts, oldest, inclusive=True, limit=100):
+        return self._api_post(
+            'conversations.replies', channel=channel, ts=ts, oldest=oldest,
+            inclusive=True,
+        )
+
+    def get_all_replies(self, channel, ts):
+        replies = []
+        oldest = ts
+        while True:
+            res = self.get_replies(channel, ts, oldest)
+            print(res)
+            replies.extend(res['messages'])
+            oldest = res['messages'][-1]
+            if not res['has_more']:
+                break
+        return replies
