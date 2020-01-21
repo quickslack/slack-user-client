@@ -4,7 +4,7 @@ from datetime import datetime
 from requests_html import HTMLSession
 from multiprocessing.dummy import Pool
 from itertools import chain
-__version__ = "0.0.0.1"
+__version__ = "0.0.0.2"
 
 
 def val_to_str(value):
@@ -180,3 +180,8 @@ class SlackClient:
             if not res['has_more']:
                 break
         return replies
+
+    def get_boot_data(self):
+        return self._api_post(
+            'client.boot', only_self_substreams=1, flannel_api_ver=4,
+            include_min_version_bump_check=1, version_ts=now_timestamp())
