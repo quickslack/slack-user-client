@@ -4,6 +4,9 @@ from datetime import datetime
 from requests_html import HTMLSession
 from multiprocessing.dummy import Pool
 from itertools import chain
+import time
+import logging
+
 __version__ = "0.0.0.3"
 
 
@@ -40,6 +43,8 @@ class SlackClient:
         self.workspace_id = None
         self.api_token = None
         self.auth_url_params = {}
+        self.rate_limit = 0.1
+        self.logger = logging.getLogger('slack-user-client')
 
     def login(self):
         """
@@ -108,7 +113,13 @@ class SlackClient:
         endpoint = f'{self.workspace_url}/api/{api_path}'
         url_params = self.auth_url_params
         res = self.session.post(endpoint, params=url_params, files=form_data)
-        return res.json()
+        time.sleep(self.rate_limit)
+        retval = res.json()
+        if retval.get('error') == 'ratelimited':
+            self.logger.info("Rate limited, sleeping for 30 seconds")
+            time.sleep(30)
+            return self._api_post(api_path, **kwargs)
+        return retval
 
     def get_messages_from_channel(
             self, channel, limit=100, latest=9999999999, ignore_replies=True,
@@ -175,7 +186,7 @@ class SlackClient:
         while True:
             res = self.get_replies(channel, ts, oldest)
             replies.extend(res.get('messages') or [])
-            if not res['has_more']:
+            if not res.get('has_more'):
                 break
             oldest = res['messages'][-1]
 
