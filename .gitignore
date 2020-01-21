@@ -125,3 +125,5 @@ dmypy.json
 
 #vscode
 .vscode/*
+.devcontainer
+test.py

@@ -4,7 +4,7 @@ from datetime import datetime
 from requests_html import HTMLSession
 from multiprocessing.dummy import Pool
 from itertools import chain
-__version__ = "0.0.0.2"
+__version__ = "0.0.0.3"
 
 
 def val_to_str(value):
@@ -163,7 +163,7 @@ class SlackClient:
             chain(*pool.map(get_page_item, range(2, page_count+1))))
         return channels
 
-    def get_replies(self, channel, ts, oldest, inclusive=True, limit=100):
+    def get_replies(self, channel, ts, oldest, inclusive=True, limit=400):
         return self._api_post(
             'conversations.replies', channel=channel, ts=ts, oldest=oldest,
             inclusive=True,
@@ -174,11 +174,11 @@ class SlackClient:
         oldest = ts
         while True:
             res = self.get_replies(channel, ts, oldest)
-            print(res)
-            replies.extend(res['messages'])
-            oldest = res['messages'][-1]
+            replies.extend(res.get('messages') or [])
             if not res['has_more']:
                 break
+            oldest = res['messages'][-1]
+
         return replies
 
     def get_boot_data(self):
