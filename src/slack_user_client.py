@@ -148,9 +148,9 @@ class SlackClient:
         while True:
             message_data = self.get_messages_from_channel(channel_id, **kwargs)
             messages.extend(message_data['messages'])
-            kwargs['latest'] = message_data['messages'][-1]['ts']
             if not message_data['has_more']:
                 break
+            kwargs['latest'] = message_data['messages'][-1]['ts']
         return messages
 
     def channel_search(
