@@ -6,6 +6,7 @@ from multiprocessing.dummy import Pool
 from itertools import chain
 import time
 import logging
+from requests.adapters import HTTPAdapter
 
 __version__ = "0.0.0.4"
 
@@ -36,6 +37,7 @@ class SlackClient:
 
     def __init__(self, email, password, workspace_url):
         self.session = HTMLSession()
+        self.session.mount('https://', HTTPAdapter(max_retries=8))
         self.email = email
         self.password = password
         self.workspace_url = workspace_url
@@ -120,6 +122,7 @@ class SlackClient:
             self.logger.info("Rate limited, sleeping for 15 seconds")
             # use new token
             self.session = HTMLSession()
+            self.session.mount('https://', HTTPAdapter(max_retries=8))
             self.login()
             return self._api_post(api_path, **kwargs)
         return retval
