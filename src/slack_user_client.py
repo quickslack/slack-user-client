@@ -7,7 +7,7 @@ from itertools import chain
 import time
 import logging
 
-__version__ = "0.0.0.3"
+__version__ = "0.0.0.4"
 
 
 def val_to_str(value):
@@ -45,6 +45,7 @@ class SlackClient:
         self.auth_url_params = {}
         self.rate_limit = 0.1
         self.logger = logging.getLogger('slack-user-client')
+        self.logger.info("Slack Client Initialized.")
 
     def login(self):
         """
@@ -116,8 +117,10 @@ class SlackClient:
         time.sleep(self.rate_limit)
         retval = res.json()
         if retval.get('error') == 'ratelimited':
-            self.logger.info("Rate limited, sleeping for 30 seconds")
-            time.sleep(30)
+            self.logger.info("Rate limited, sleeping for 15 seconds")
+            # use new token
+            self.session = HTMLSession()
+            self.login()
             return self._api_post(api_path, **kwargs)
         return retval
 
