@@ -8,7 +8,7 @@ import time
 import logging
 from requests.adapters import HTTPAdapter
 
-__version__ = "0.0.0.4"
+__version__ = "0.0.0.6"
 
 
 def val_to_str(value):
@@ -35,7 +35,7 @@ class SlackClient:
     Slack Client using slack's internal web api
     """
 
-    def __init__(self, email, password, workspace_url):
+    def __init__(self, email, password, workspace_url, rl_delay=0):
         self.session = HTMLSession()
         self.session.mount('https://', HTTPAdapter(max_retries=8))
         self.email = email
@@ -45,7 +45,7 @@ class SlackClient:
         self.workspace_id = None
         self.api_token = None
         self.auth_url_params = {}
-        self.rate_limit = 0.1
+        self.rate_limit = rl_delay
         self.logger = logging.getLogger('slack-user-client')
         self.logger.info("Slack Client Initialized.")
 
